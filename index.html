@@ -70,98 +70,139 @@
   </div>
 
   <script>
-    let scanner = null;
-    let processing = false;
-
-    document.getElementById("startButton")
-      .addEventListener("click", startScanner);
-
-    function startScanner() {
-      const button = document.getElementById("startButton");
-      const status = document.getElementById("status");
-
-      button.disabled = true;
-      status.textContent = "Opening camera...";
-
-      scanner = new Html5Qrcode("reader", {
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.QR_CODE
-        ]
-      });
-
-      scanner.start(
-        { facingMode: "environment" },
-        {
-          fps: 15,
-          videoConstraints: {
+    
+    let cameraStream = null;
+    let videoElement = null;
+    let detector = null;
+    let scanning = false;
+    let scanTimer = null;
+    
+    const button = document.getElementById("startButton");
+    const status = document.getElementById("status");
+    const reader = document.getElementById("reader");
+    
+    button.addEventListener("click", startScanner);
+    
+    async function startScanner() {
+      try {
+        if (!("BarcodeDetector" in window)) {
+          status.textContent =
+            "This browser does not support BarcodeDetector.";
+          return;
+        }
+    
+        const formats = await BarcodeDetector.getSupportedFormats();
+    
+        if (!formats.includes("qr_code")) {
+          status.textContent = "QR Code format is not supported.";
+          return;
+        }
+    
+        detector = new BarcodeDetector({
+          formats: ["qr_code"]
+        });
+    
+        button.disabled = true;
+        status.textContent = "Opening camera...";
+    
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
             facingMode: { ideal: "environment" },
             width: { ideal: 1920 },
             height: { ideal: 1080 }
           }
-        },
-
-        function(decodedText) {
-          if (processing) return;
-          processing = true;
-
-          let cardCode = "";
-
-          try {
-            const qrUrl = new URL(decodedText);
-            cardCode = qrUrl.searchParams.get("code") || "";
-          } catch (error) {
-            cardCode = decodedText.trim();
-          }
-
-          cardCode = cardCode.trim().toUpperCase();
-
-          if (!cardCode) {
-            processing = false;
-            status.textContent = "Invalid QR Code. Scan again.";
-            return;
-          }
-
-          scanner.stop().then(function() {
-            status.textContent = "QR Code successfully scanned.";
-            button.disabled = false;
-            button.textContent = "SCAN ANOTHER CARD";
-
-            const resultUrl = new URL(window.location.href);
-            resultUrl.searchParams.set("code", cardCode);
-
-            status.textContent = "Card Number: " + cardCode;
-
-            const result = document.createElement("button");
-            result.textContent = "CONTINUE TO VERIFICATION";
-            result.style.marginTop = "15px";
-
-            result.onclick = function() {
-              window.location.href = resultUrl.toString();
-            };
-
-            document.querySelector(".container").appendChild(result);
-
-          }).catch(function(error) {
-            status.textContent = "Could not stop camera: " + error;
-            button.disabled = false;
-          });
-        },
-
-        function(errorMessage) {
-          // Ignore continuous scanning errors.
-        }
-
-      ).then(function() {
-        status.textContent = "Camera active. Point it at a QR Code.";
+        });
+    
+        videoElement = document.createElement("video");
+        videoElement.setAttribute("playsinline", "");
+        videoElement.muted = true;
+        videoElement.autoplay = true;
+        videoElement.srcObject = cameraStream;
+    
+        videoElement.style.width = "100%";
+        videoElement.style.borderRadius = "10px";
+    
+        reader.innerHTML = "";
+        reader.appendChild(videoElement);
+    
+        await videoElement.play();
+    
+        scanning = true;
         button.disabled = false;
-
-      }).catch(function(error) {
-        status.textContent =
-          "Unable to open camera. Check camera permission.";
+        button.textContent = "SCANNING...";
+        status.textContent = "Camera active. Point at a QR Code.";
+    
+        scanFrame();
+    
+      } catch (error) {
+        status.textContent = "Camera error: " + error.message;
         button.disabled = false;
-        console.error(error);
-      });
+      }
     }
+    
+    async function scanFrame() {
+      if (!scanning || !videoElement) return;
+    
+      try {
+        const results = await detector.detect(videoElement);
+    
+        if (results.length > 0) {
+          const rawValue = results[0].rawValue;
+    
+          scanning = false;
+          stopCamera();
+    
+          status.textContent = "QR detected: " + rawValue;
+          button.textContent = "SCAN ANOTHER CARD";
+    
+          const result = document.createElement("button");
+          result.textContent = "CONTINUE TO VERIFICATION";
+          result.style.marginTop = "15px";
+    
+          result.onclick = function() {
+            let cardCode = "";
+    
+            try {
+              cardCode = new URL(rawValue).searchParams.get("code") || "";
+            } catch (error) {
+              cardCode = rawValue.trim();
+            }
+    
+            cardCode = cardCode.trim().toUpperCase();
+    
+            if (!cardCode) {
+              status.textContent = "Invalid QR Code.";
+              return;
+            }
+    
+            const url = new URL(window.location.href);
+            url.searchParams.set("code", cardCode);
+            window.location.href = url.toString();
+          };
+    
+          reader.appendChild(result);
+          return;
+        }
+    
+      } catch (error) {
+        console.error(error);
+      }
+    
+      scanTimer = setTimeout(scanFrame, 150);
+    }
+    
+    function stopCamera() {
+      scanning = false;
+    
+      if (scanTimer) clearTimeout(scanTimer);
+    
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+      }
+    }
+
   </script>
 </body>
 </html>
