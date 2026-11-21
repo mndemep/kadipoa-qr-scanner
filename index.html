@@ -161,25 +161,38 @@
           result.style.marginTop = "15px";
     
           result.onclick = function() {
-            let cardCode = "";
-    
-            try {
-              cardCode = new URL(rawValue).searchParams.get("code") || "";
-            } catch (error) {
-              cardCode = rawValue.trim();
-            }
-    
-            cardCode = cardCode.trim().toUpperCase();
-    
-            if (!cardCode) {
-              status.textContent = "Invalid QR Code.";
-              return;
-            }
-    
-            const url = new URL(window.location.href);
-            url.searchParams.set("code", cardCode);
-            window.location.href = url.toString();
-          };
+          let cardCode = "";
+        
+          try {
+            cardCode = new URL(rawValue).searchParams.get("code") || "";
+          } catch (error) {
+            cardCode = rawValue.trim();
+          }
+        
+          cardCode = cardCode.trim().toUpperCase();
+        
+          if (!cardCode) {
+            status.textContent = "Invalid QR Code.";
+            return;
+          }
+        
+          if (window.opener && !window.opener.closed) {
+            window.opener.postMessage(
+              {
+                type: "KADIPOA_QR_SCANNED",
+                cardCode: cardCode
+              },
+              "*"
+            );
+        
+            status.textContent = "Card Number sent successfully.";
+            window.close();
+        
+          } else {
+            status.textContent =
+              "Verification page is not available. Open scanner from Kadipoa.";
+          }
+        };
     
           reader.appendChild(result);
           return;
