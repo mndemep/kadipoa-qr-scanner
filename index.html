@@ -91,7 +91,10 @@
 
       scanner.start(
         { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
+        {
+          fps: 15,
+          aspectRatio: 1.0
+        },
 
         function(decodedText) {
           if (processing) return;
