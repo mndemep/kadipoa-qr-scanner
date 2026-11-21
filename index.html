@@ -62,7 +62,7 @@
     <h2>KADIPOA</h2>
     <p>Event QR Code Scanner</p>
 
-    <button id="startButton">OPEN CAMERA</button>
+    <button id="startButton" style="display:none;">OPEN CAMERA</button>
 
     <div id="reader"></div>
 
@@ -81,7 +81,9 @@
     const status = document.getElementById("status");
     const reader = document.getElementById("reader");
     
-    button.addEventListener("click", startScanner);
+    window.addEventListener("load", function() {
+      startScanner();
+    });
     
     async function startScanner() {
       try {
