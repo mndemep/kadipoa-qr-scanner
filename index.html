@@ -149,56 +149,49 @@
       try {
         const results = await detector.detect(videoElement);
     
-        if (results.length > 0) {
-          const rawValue = results[0].rawValue;
-    
-          scanning = false;
-          stopCamera();
-    
-          status.textContent = "QR detected: " + rawValue;
-          button.textContent = "SCAN ANOTHER CARD";
-    
-          const result = document.createElement("button");
-          result.textContent = "CONTINUE TO VERIFICATION";
-          result.style.marginTop = "15px";
-    
-          result.onclick = function() {
-          let cardCode = "";
-        
-          try {
-            cardCode = new URL(rawValue).searchParams.get("code") || "";
-          } catch (error) {
-            cardCode = rawValue.trim();
-          }
-        
-          cardCode = cardCode.trim().toUpperCase();
-        
-          if (!cardCode) {
-            status.textContent = "Invalid QR Code.";
-            return;
-          }
-        
-          if (window.opener && !window.opener.closed) {
-            window.opener.postMessage(
-              {
-                type: "KADIPOA_QR_SCANNED",
-                cardCode: cardCode
-              },
-              "*"
-            );
-        
-            status.textContent = "Card Number sent successfully.";
-            window.close();
-        
-          } else {
-            status.textContent =
-              "Verification page is not available. Open scanner from Kadipoa.";
-          }
-        };
-    
-          reader.appendChild(result);
+       if (results.length > 0) {
+
+        const rawValue = results[0].rawValue;
+      
+        let cardCode = "";
+      
+        try {
+          cardCode = new URL(rawValue).searchParams.get("code") || "";
+        } catch (error) {
+          cardCode = rawValue.trim();
+        }
+      
+        cardCode = cardCode.trim().toUpperCase();
+      
+        scanning = false;
+        stopCamera();
+      
+        if (!cardCode) {
+          status.textContent = "Invalid QR Code.";
           return;
         }
+      
+        if (window.opener && !window.opener.closed) {
+      
+          window.opener.postMessage(
+            {
+              type: "KADIPOA_QR_SCANNED",
+              cardCode: cardCode
+            },
+            "*"
+          );
+      
+          status.textContent = "Card verified. Returning to Kadipoa...";
+      
+          window.close();
+      
+        } else {
+          status.textContent =
+            "Kadipoa verification page is not available.";
+        }
+      
+        return;
+      }
     
       } catch (error) {
         console.error(error);
