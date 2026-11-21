@@ -93,7 +93,11 @@
         { facingMode: "environment" },
         {
           fps: 15,
-          aspectRatio: 1.0
+          videoConstraints: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          }
         },
 
         function(decodedText) {
